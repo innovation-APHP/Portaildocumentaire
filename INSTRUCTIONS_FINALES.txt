@@ -1,0 +1,266 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   ✅ INSTRUCTIONS FINALES - DÉPLOIEMENT DOCKER               ║
+║                      Portail Documentaire Wiki.js v1.0.0                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+🎯 PROBLÈME IDENTIFIÉ
+═══════════════════════════════════════════════════════════════════════════════
+
+Tu as indiqué que :
+❌ Dockerfile est un RÉPERTOIRE (au lieu d'un fichier)
+❌ VERSION est un RÉPERTOIRE (au lieu d'un fichier)
+❌ .env.docker: no such file or directory
+
+
+✅ SOLUTIONS DISPONIBLES
+═══════════════════════════════════════════════════════════════════════════════
+
+J'ai créé plusieurs outils pour résoudre ces problèmes :
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🔧 MÉTHODE 1 : SCRIPT AUTOMATIQUE (RECOMMANDÉ)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Lance simplement ce script qui fait tout automatiquement :
+
+   bash START_DOCKER.sh
+
+Ce script va :
+   ✅ Vérifier les prérequis (Docker, Docker Compose)
+   ✅ Corriger automatiquement Dockerfile et VERSION
+   ✅ Créer le fichier .env depuis .env.docker
+   ✅ Te demander de configurer le mot de passe
+   ✅ Lancer Docker Compose
+   ✅ Afficher les URLs d'accès
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🔧 MÉTHODE 2 : CORRECTION MANUELLE                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Si tu préfères corriger manuellement :
+
+1️⃣ Corrige Dockerfile et VERSION :
+
+   bash fix-docker-files.sh
+
+2️⃣ Crée le fichier .env :
+
+   cp .env.docker .env
+   nano .env
+
+   # Change au minimum cette ligne :
+   POSTGRES_PASSWORD=ton_mot_de_passe_super_securise
+
+3️⃣ Lance Docker Compose :
+
+   docker-compose up -d --build
+
+4️⃣ Vérifie le déploiement :
+
+   docker-compose ps
+   docker-compose logs -f
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🔧 MÉTHODE 3 : CORRECTION COMPLÈTEMENT MANUELLE                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Si les scripts ne fonctionnent pas, voici les étapes manuelles :
+
+
+═══ ÉTAPE 1 : Corriger Dockerfile ═══
+
+# Sauvegarde le contenu
+cp Dockerfile/main.tsx Dockerfile.backup
+
+# Supprime le répertoire
+rm -rf Dockerfile
+
+# Restaure comme fichier
+mv Dockerfile.backup Dockerfile
+
+# Vérifie que c'est bien un fichier
+file Dockerfile
+# Résultat attendu : "Dockerfile: ASCII text"
+
+
+═══ ÉTAPE 2 : Corriger VERSION ═══
+
+# Sauvegarde le contenu
+cat VERSION/main.tsx > VERSION.backup
+
+# Supprime le répertoire
+rm -rf VERSION
+
+# Restaure comme fichier
+mv VERSION.backup VERSION
+
+# Vérifie
+file VERSION
+# Résultat attendu : "VERSION: ASCII text"
+
+
+═══ ÉTAPE 3 : Créer .env ═══
+
+# Vérifie que .env.docker existe
+ls -lah .env.docker
+
+# Si oui, copie-le
+cp .env.docker .env
+
+# Si non, crée .env manuellement
+cat > .env << 'EOF'
+WIKIJS_URL=http://wikijs:3000
+WIKIJS_TOKEN=
+RAG_API_URL=
+POSTGRES_DB=wikijs
+POSTGRES_USER=wikijs
+POSTGRES_PASSWORD=changeme_super_secret_password
+PORTAIL_PORT=8080
+WIKIJS_PORT=3000
+TZ=Europe/Paris
+NODE_ENV=production
+EOF
+
+# Édite le mot de passe
+nano .env
+
+
+═══ ÉTAPE 4 : Lancer Docker ═══
+
+docker-compose up -d --build
+
+
+═══ ÉTAPE 5 : Vérifier ═══
+
+docker-compose ps
+docker-compose logs -f portail-docs
+
+
+📋 FICHIERS DISPONIBLES
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Scripts de déploiement :
+   • START_DOCKER.sh          ← Script automatique complet
+   • fix-docker-files.sh      ← Corrige Dockerfile et VERSION
+
+✅ Configuration Docker :
+   • Dockerfile/main.tsx      ← Contenu du Dockerfile (à corriger)
+   • VERSION/main.tsx         ← Contenu du VERSION (à corriger)
+   • docker-compose.yml       ← Orchestration Docker
+   • .env.docker              ← Template de configuration
+   • .dockerignore            ← Optimisation du build
+
+✅ Configuration Nginx :
+   • docker/nginx.conf        ← Configuration Nginx
+   • docker/docker-entrypoint.sh ← Script de démarrage
+
+✅ Documentation :
+   • README_DOCKER.md         ← Guide complet Docker
+   • DEPLOY_NOW.txt           ← Instructions de déploiement
+   • DOCKER_START.txt         ← Guide de démarrage
+   • DOCKER_DEPLOYMENT.md     ← Documentation détaillée
+   • DOCKER_QUICK.md          ← Commandes rapides
+   • INSTRUCTIONS_FINALES.txt ← Ce fichier
+
+
+🎯 COMMANDE RECOMMANDÉE
+═══════════════════════════════════════════════════════════════════════════════
+
+La méthode la plus simple est d'utiliser le script automatique :
+
+   bash START_DOCKER.sh
+
+Ou si tu préfères le faire en 3 commandes :
+
+   bash fix-docker-files.sh
+   cp .env.docker .env && nano .env
+   docker-compose up -d --build
+
+
+🔍 VÉRIFICATION POST-DÉPLOIEMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Après le déploiement, vérifie que tout fonctionne :
+
+1️⃣ Statut des conteneurs :
+
+   docker-compose ps
+
+   Résultat attendu :
+   NAME                   STATUS         PORTS
+   portail-documentaire   Up (healthy)   0.0.0.0:8080->80/tcp
+   wikijs                 Up (healthy)   0.0.0.0:3000->3000/tcp
+   wikijs-postgres        Up (healthy)   5432/tcp
+
+2️⃣ Logs :
+
+   docker-compose logs -f portail-docs
+
+3️⃣ Accès aux applications :
+
+   Portail : http://localhost:8080
+   Wiki.js : http://localhost:3000
+
+
+📚 PROCHAINES ÉTAPES
+═══════════════════════════════════════════════════════════════════════════════
+
+Une fois Docker déployé :
+
+1️⃣ Configure Wiki.js :
+   • Accède à http://localhost:3000
+   • Crée un compte administrateur
+   • Génère un token API (Settings → API → Generate New Key)
+
+2️⃣ Configure le Portail :
+   • Accède à http://localhost:8080
+   • Va dans Paramètres
+   • Entre l'URL et le token Wiki.js
+   • Teste la connexion
+
+3️⃣ Importe ta documentation :
+   • Utilise le panneau de migration dans le Portail
+   • Ou importe directement dans Wiki.js
+
+
+🆘 EN CAS DE PROBLÈME
+═══════════════════════════════════════════════════════════════════════════════
+
+Si tu rencontres un problème :
+
+1️⃣ Vérifie les logs :
+   docker-compose logs -f
+
+2️⃣ Consulte la documentation :
+   • README_DOCKER.md (section Troubleshooting)
+   • DEPLOY_NOW.txt
+
+3️⃣ Commandes de diagnostic :
+
+   # Vérifie que Dockerfile et VERSION sont des fichiers
+   file Dockerfile VERSION
+
+   # Vérifie le contenu de .env
+   cat .env
+
+   # Test le build Docker
+   docker build -t portail-test .
+
+   # Valide docker-compose.yml
+   docker-compose config
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✨ RÉSUMÉ : Une seule commande pour tout faire !
+
+   bash START_DOCKER.sh
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Dernière mise à jour : 30 Mars 2026
+Version : 1.0.0

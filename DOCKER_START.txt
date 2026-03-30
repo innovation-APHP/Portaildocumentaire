@@ -1,0 +1,216 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                      🐳 DÉMARRAGE RAPIDE DOCKER                              ║
+║                   Portail Documentaire Wiki.js v1.0.0                        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📋 PRÉREQUIS
+─────────────────────────────────────────────────────────────────────────────
+✅ Docker installé (version 20.10+)
+✅ Docker Compose installé (version 2.0+)
+✅ Port 8080 disponible (Portail)
+✅ Port 3000 disponible (Wiki.js) - optionnel
+✅ Port 5432 disponible (PostgreSQL) - optionnel
+
+
+🚀 ÉTAPE 1 : CONFIGURATION
+─────────────────────────────────────────────────────────────────────────────
+
+1️⃣ Copie le fichier d'environnement :
+   
+   cp .env.docker .env
+
+2️⃣ Édite le fichier .env et configure :
+
+   # ⚠️ IMPORTANT : Change ce mot de passe !
+   POSTGRES_PASSWORD=ton_mot_de_passe_super_securise
+   
+   # Configure les ports si nécessaire
+   PORTAIL_PORT=8080
+   WIKIJS_PORT=3000
+   
+   # Laisse les autres valeurs par défaut pour commencer
+
+
+🐳 ÉTAPE 2 : LANCER LES CONTENEURS
+─────────────────────────────────────────────────────────────────────────────
+
+Option A - Tout le stack (Portail + Wiki.js + PostgreSQL) :
+
+   docker-compose up -d --build
+
+Option B - Uniquement le Portail (si tu as déjà Wiki.js ailleurs) :
+
+   docker-compose up -d --build portail-docs
+
+
+📊 ÉTAPE 3 : VÉRIFIER LE DÉPLOIEMENT
+─────────────────────────────────────────────────────────────────────────────
+
+1️⃣ Vérifie que les conteneurs tournent :
+
+   docker-compose ps
+
+   Résultat attendu :
+   NAME                   STATUS         PORTS
+   portail-documentaire   Up (healthy)   0.0.0.0:8080->80/tcp
+   wikijs                 Up (healthy)   0.0.0.0:3000->3000/tcp
+   wikijs-postgres        Up (healthy)   5432/tcp
+
+2️⃣ Vérifie les logs :
+
+   docker-compose logs -f portail-docs
+   docker-compose logs -f wikijs
+
+3️⃣ Teste l'accès :
+
+   Portail : http://localhost:8080
+   Wiki.js : http://localhost:3000
+
+
+🔧 COMMANDES UTILES
+─────────────────────────────────────────────────────────────────────────────
+
+# Arrêter les conteneurs
+docker-compose stop
+
+# Redémarrer les conteneurs
+docker-compose restart
+
+# Voir les logs en temps réel
+docker-compose logs -f
+
+# Voir les logs d'un service spécifique
+docker-compose logs -f portail-docs
+
+# Reconstruire et redémarrer après un changement de code
+docker-compose up -d --build portail-docs
+
+# Supprimer tous les conteneurs et volumes (⚠️ ATTENTION : efface les données !)
+docker-compose down -v
+
+# Nettoyer sans supprimer les volumes
+docker-compose down
+
+
+🛠️ TROUBLESHOOTING
+─────────────────────────────────────────────────────────────────────────────
+
+❌ Port déjà utilisé :
+   
+   # Change le port dans .env
+   PORTAIL_PORT=8081  # Au lieu de 8080
+   
+   # Redémarre
+   docker-compose up -d
+
+❌ Conteneur unhealthy :
+   
+   # Vérifie les logs
+   docker-compose logs portail-docs
+   
+   # Redémarre le conteneur
+   docker-compose restart portail-docs
+
+❌ Erreur de connexion à Wiki.js :
+   
+   # Vérifie que Wiki.js est bien démarré
+   docker-compose ps wikijs
+   
+   # Vérifie l'URL dans .env
+   WIKIJS_URL=http://wikijs:3000
+
+❌ Build échoue :
+   
+   # Nettoie le cache Docker
+   docker-compose build --no-cache portail-docs
+
+
+📚 CONFIGURATION WIKI.JS
+─────────────────────────────────────────────────────────────────────────────
+
+1️⃣ Accède à http://localhost:3000
+
+2️⃣ Suis l'assistant de configuration
+
+3️⃣ Configure la connexion PostgreSQL (déjà pré-configurée)
+
+4️⃣ Crée un compte administrateur
+
+5️⃣ Génère un token API :
+   Settings → API → Generate New Key
+   
+6️⃣ Copie le token dans le Portail :
+   http://localhost:8080 → Paramètres → Configuration Wiki.js
+
+
+🔐 SÉCURITÉ PRODUCTION
+─────────────────────────────────────────────────────────────────────────────
+
+⚠️ AVANT DE DÉPLOYER EN PRODUCTION :
+
+1️⃣ Change TOUS les mots de passe dans .env
+
+2️⃣ Utilise HTTPS avec un reverse proxy (Nginx, Traefik, Caddy)
+
+3️⃣ Active les limites de ressources (déjà configuré dans docker-compose.yml)
+
+4️⃣ Configure des sauvegardes régulières :
+   
+   # Backup PostgreSQL
+   docker exec wikijs-postgres pg_dump -U wikijs wikijs > backup.sql
+   
+   # Backup volumes
+   docker run --rm -v wikijs-data:/data -v $(pwd):/backup \
+     alpine tar czf /backup/wikijs-data-backup.tar.gz -C /data .
+
+5️⃣ Active les logs centralisés
+
+6️⃣ Configure un monitoring (Prometheus, Grafana)
+
+
+📂 STRUCTURE DES FICHIERS
+─────────────────────────────────────────────────────────────────────────────
+
+portail-documentaire/
+├── Dockerfile                 # ✅ Configuration image Docker
+├── docker-compose.yml         # ✅ Orchestration des services
+├── .env                       # ⚠️ À créer depuis .env.docker
+├── .env.docker               # ✅ Template environnement
+├── .dockerignore             # ✅ Fichiers exclus du build
+├── docker/
+│   ├── nginx.conf            # ✅ Configuration Nginx
+│   └── docker-entrypoint.sh  # ✅ Script de démarrage
+└── logs/
+    └── nginx/                # 📝 Logs créés automatiquement
+
+
+🎯 PROCHAINES ÉTAPES
+─────────────────────────────────────────────────────────────────────────────
+
+✅ Déploiement Docker : EN COURS
+⬜ Configuration Wiki.js
+⬜ Configuration du token API dans le Portail
+⬜ Test de l'intégration
+⬜ Configuration de l'API RAG (optionnel)
+⬜ Mise en production
+
+
+📖 DOCUMENTATION COMPLÈTE
+─────────────────────────────────────────────────────────────────────────────
+
+• DOCKER_DEPLOYMENT.md    - Guide détaillé de déploiement
+• DOCKER_QUICK.md         - Guide de démarrage rapide
+• QUICK_START_WIKIJS.md   - Configuration Wiki.js
+• README.md               - Documentation générale
+
+
+💬 BESOIN D'AIDE ?
+─────────────────────────────────────────────────────────────────────────────
+
+Consulte les fichiers de documentation dans le répertoire racine du projet.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Dernière mise à jour : 30 Mars 2026
+Version : 1.0.0
