@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router';
-import { BookOpen, FileText, Users, Home, Search, Menu, X, FolderTree, MessageSquare, LogOut, Settings } from 'lucide-react';
-import { Input } from './ui/input';
+import { BookOpen, FileText, Users, Home, Menu, X, FolderTree, MessageSquare, LogOut, Settings, Shield, Search } from 'lucide-react';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -10,6 +10,8 @@ export function Layout() {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const canAdmin = user?.role === 'admin' || user?.role === 'editor';
+
   const navigation = [
     { name: 'Accueil', href: '/', icon: Home },
     { name: 'Assistant IA', href: '/chat', icon: MessageSquare },
@@ -17,6 +19,7 @@ export function Layout() {
     { name: 'Documentation Fonctionnelle', href: '/docs/functional', icon: BookOpen },
     { name: 'Documentation Technique', href: '/docs/technical', icon: FileText },
     { name: 'Documentation Utilisateur', href: '/docs/user', icon: Users },
+    ...(canAdmin ? [{ name: 'Administration', href: '/admin', icon: Shield }] : []),
     { name: 'Paramètres', href: '/settings', icon: Settings },
   ];
 

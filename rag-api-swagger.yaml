@@ -1,0 +1,304 @@
+openapi: 3.0.0
+info:
+  title: API RAG pour Portail Documentaire
+  description: |
+    API de Retrieval-Augmented Generation pour interroger la base documentaire.
+
+    Cette spécification définit le contrat d'API attendu par le portail documentaire.
+    Votre implémentation RAG doit respecter ce contrat pour être compatible.
+  version: 1.0.0
+  contact:
+    name: Support
+    email: support@monentreprise.com
+
+servers:
+  - url: http://localhost:8000
+    description: Serveur de développement local
+  - url: https://rag-api.monentreprise.com
+    description: Serveur de production
+
+security:
+  - BearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Vérification de santé
+      description: Endpoint pour vérifier que l'API est opérationnelle
+      operationId: healthCheck
+      tags:
+        - Monitoring
+      security: []
+      responses:
+        '200':
+          description: API opérationnelle
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  version:
+                    type: string
+                    example: 1.0.0
+        '503':
+          description: Service indisponible
+
+  /query:
+    post:
+      summary: Interroger la base documentaire
+      description: |
+        Envoie une question en langage naturel et reçoit une réponse générée
+        par le système RAG avec les sources documentaires utilisées.
+      operationId: queryDocuments
+      tags:
+        - RAG
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+            examples:
+              simple:
+                summary: Question simple
+                value:
+                  query: "Comment fonctionne l'authentification ?"
+                  max_results: 3
+              withHistory:
+                summary: Question avec historique
+                value:
+                  query: "Et pour le mot de passe oublié ?"
+                  max_results: 5
+                  conversation_history:
+                    - role: user
+                      content: "Comment fonctionne l'authentification ?"
+                    - role: assistant
+                      content: "L'authentification se fait via JWT..."
+      responses:
+        '200':
+          description: Réponse générée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              examples:
+                withSources:
+                  summary: Réponse avec sources
+                  value:
+                    answer: "L'authentification fonctionne avec des tokens JWT. Après une connexion réussie, un token est généré et doit être inclus dans toutes les requêtes suivantes."
+                    sources:
+                      - document_id: "doc-auth-001"
+                        title: "Guide d'authentification"
+                        excerpt: "Le système utilise JWT (JSON Web Tokens) pour sécuriser l'authentification..."
+                        score: 0.95
+                        category: "technical"
+                      - document_id: "doc-security-003"
+                        title: "Sécurité des API"
+                        excerpt: "Chaque requête authentifiée doit inclure le header Authorization: Bearer <token>"
+                        score: 0.87
+                        category: "technical"
+                    confidence: 0.91
+                    conversation_id: "conv-12345"
+        '400':
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Erreur serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /search:
+    post:
+      summary: Rechercher dans les documents
+      description: |
+        Recherche sémantique dans la base documentaire sans génération de réponse.
+        Retourne uniquement les documents pertinents triés par score de pertinence.
+      operationId: searchDocuments
+      tags:
+        - RAG
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: Texte de recherche
+                  example: "authentification JWT"
+                max_results:
+                  type: integer
+                  description: Nombre maximum de résultats
+                  default: 5
+                  minimum: 1
+                  maximum: 20
+      responses:
+        '200':
+          description: Résultats de recherche
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentSource'
+                  total:
+                    type: integer
+                    description: Nombre total de résultats
+        '400':
+          description: Requête invalide
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token d'authentification Bearer à inclure dans le header Authorization.
+        Exemple: `Authorization: Bearer sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+
+  schemas:
+    QueryRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: Question en langage naturel
+          example: "Comment fonctionne l'authentification ?"
+          minLength: 3
+          maxLength: 500
+        max_results:
+          type: integer
+          description: Nombre maximum de sources à retourner
+          default: 3
+          minimum: 1
+          maximum: 10
+        conversation_history:
+          type: array
+          description: Historique de conversation pour le contexte
+          items:
+            type: object
+            required:
+              - role
+              - content
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+                description: Rôle de l'auteur du message
+              content:
+                type: string
+                description: Contenu du message
+          example:
+            - role: user
+              content: "Comment créer un utilisateur ?"
+            - role: assistant
+              content: "Pour créer un utilisateur, utilisez l'endpoint POST /api/users..."
+
+    QueryResponse:
+      type: object
+      required:
+        - answer
+      properties:
+        answer:
+          type: string
+          description: Réponse générée par le système RAG
+          example: "L'authentification fonctionne avec des tokens JWT..."
+        sources:
+          type: array
+          description: Documents sources utilisés pour générer la réponse
+          items:
+            $ref: '#/components/schemas/DocumentSource'
+        confidence:
+          type: number
+          format: float
+          description: Score de confiance de la réponse (0-1)
+          minimum: 0
+          maximum: 1
+          example: 0.87
+        conversation_id:
+          type: string
+          description: ID de la conversation (optionnel)
+          example: "conv-12345"
+
+    DocumentSource:
+      type: object
+      required:
+        - document_id
+        - title
+        - excerpt
+        - score
+      properties:
+        document_id:
+          type: string
+          description: Identifiant unique du document
+          example: "doc-auth-001"
+        title:
+          type: string
+          description: Titre du document
+          example: "Guide d'authentification"
+        excerpt:
+          type: string
+          description: Extrait pertinent du document
+          example: "Le système utilise JWT pour sécuriser l'authentification..."
+        score:
+          type: number
+          format: float
+          description: Score de pertinence (0-1)
+          minimum: 0
+          maximum: 1
+          example: 0.95
+        category:
+          type: string
+          description: Catégorie du document
+          enum: [functional, technical, user]
+          example: "technical"
+        content:
+          type: string
+          description: Contenu complet du document (alternatif à excerpt)
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Code d'erreur
+          example: "INVALID_REQUEST"
+        message:
+          type: string
+          description: Message d'erreur détaillé
+          example: "Le champ 'query' est requis"
+        details:
+          type: object
+          description: Détails supplémentaires (optionnel)
+
+tags:
+  - name: RAG
+    description: Endpoints de Retrieval-Augmented Generation
+  - name: Monitoring
+    description: Endpoints de monitoring et santé

@@ -1,4 +1,9 @@
 import { mockDocuments } from '../data/mockDocuments';
+import { connectionConfig } from './connectionConfig';
+
+const RAG_API_URL = connectionConfig.getRagApiUrl();
+const RAG_API_TOKEN = connectionConfig.getRagApiToken();
+const USE_REAL_RAG = !!RAG_API_URL;
 
 export interface Message {
   id: string;
@@ -22,19 +27,75 @@ export interface RAGResponse {
   confidence: number;
 }
 
-// Simuler l'appel à une API RAG
+// Fonction principale pour interroger le RAG
 export async function queryRAG(question: string): Promise<RAGResponse> {
+  if (USE_REAL_RAG) {
+    return queryRealRAG(question);
+  } else {
+    return queryMockRAG(question);
+  }
+}
+
+// Appel à l'API RAG réelle
+async function queryRealRAG(question: string): Promise<RAGResponse> {
+  try {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (RAG_API_TOKEN) {
+      headers['Authorization'] = `Bearer ${RAG_API_TOKEN}`;
+    }
+
+    const response = await fetch(`${RAG_API_URL}/query`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        query: question,
+        max_results: 3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('RAG API error:', response.status, response.statusText);
+      throw new Error(`Erreur API RAG: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Adapter la réponse de l'API au format attendu
+    return {
+      answer: data.answer || data.response || 'Aucune réponse générée.',
+      sources: (data.sources || []).map((source: any, index: number) => ({
+        id: source.document_id || source.id || `doc-${index}`,
+        title: source.title || 'Document sans titre',
+        category: source.category || 'technical',
+        relevanceScore: source.score || source.relevance || 0.5,
+        excerpt: source.excerpt || source.content || source.text || '',
+      })),
+      confidence: data.confidence || 0.8,
+    };
+  } catch (error) {
+    console.error('Erreur lors de l\'appel au RAG:', error);
+    // Fallback sur le mode mock en cas d'erreur
+    console.warn('Fallback vers le mode mock RAG');
+    return queryMockRAG(question);
+  }
+}
+
+// Simuler l'appel à une API RAG (mode mock)
+async function queryMockRAG(question: string): Promise<RAGResponse> {
   // Simuler un délai réseau
   await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
 
   // Logique de recherche simple pour simuler un RAG
   const lowerQuestion = question.toLowerCase();
-  
+
   // Trouver les documents pertinents
   const relevantDocs = mockDocuments
     .filter(doc => {
       const searchText = `${doc.title} ${doc.description} ${doc.content} ${doc.tags.join(' ')}`.toLowerCase();
-      return searchText.includes(lowerQuestion.split(' ')[0]) || 
+      return searchText.includes(lowerQuestion.split(' ')[0]) ||
              searchText.includes(lowerQuestion.split(' ')[1]) ||
              lowerQuestion.split(' ').some(word => word.length > 4 && searchText.includes(word));
     })
@@ -82,6 +143,35 @@ export async function queryRAG(question: string): Promise<RAGResponse> {
   };
 }
 
+// Vérifier la santé de l'API RAG
+export async function checkRAGHealth(): Promise<boolean> {
+  if (!USE_REAL_RAG) {
+    return true; // Mode mock toujours disponible
+  }
+
+  try {
+    const headers: HeadersInit = {};
+    if (RAG_API_TOKEN) {
+      headers['Authorization'] = `Bearer ${RAG_API_TOKEN}`;
+    }
+
+    const response = await fetch(`${RAG_API_URL}/health`, {
+      method: 'GET',
+      headers,
+    });
+
+    return response.ok;
+  } catch (error) {
+    console.error('RAG health check failed:', error);
+    return false;
+  }
+}
+
+// Retourne le mode actuel
+export function getRAGMode(): 'real' | 'mock' {
+  return USE_REAL_RAG ? 'real' : 'mock';
+}
+
 // Suggestions de questions
 export const suggestedQuestions = [
   "Comment fonctionne l'authentification ?",
@@ -93,3 +183,17 @@ export const suggestedQuestions = [
   "Quels sont les délais de livraison ?",
   "Comment réinitialiser mon mot de passe ?"
 ];
+
+// Log du mode au démarrage
+if (USE_REAL_RAG) {
+  console.log('🤖 Service RAG: Mode API réelle -', RAG_API_URL);
+  checkRAGHealth().then(healthy => {
+    if (healthy) {
+      console.log('✅ API RAG opérationnelle');
+    } else {
+      console.warn('⚠️ API RAG non accessible, fallback vers mode mock');
+    }
+  });
+} else {
+  console.log('🤖 Service RAG: Mode mock (VITE_RAG_API_URL non configuré)');
+}

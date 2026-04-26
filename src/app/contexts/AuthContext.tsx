@@ -1,11 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { wikijsService } from '../services/wikijsService';
+import { apiClient } from '../services/apiClient';
 
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'editor' | 'user';
   avatar?: string;
 }
 
@@ -13,7 +13,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -26,62 +26,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Vérifier si l'utilisateur est déjà connecté au chargement
   useEffect(() => {
     const storedUser = localStorage.getItem('auth_user');
-    if (storedUser) {
+    const token = localStorage.getItem('auth_token');
+
+    if (storedUser && token) {
       try {
         setUser(JSON.parse(storedUser));
       } catch (error) {
         localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_token');
       }
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    // Essayer d'abord avec Wiki.js
+  const login = async (username: string, password: string) => {
     try {
-      const result = await wikijsService.login(email, password);
-      
-      if (result.success && result.jwt) {
-        // Stocker le token Wiki.js
-        localStorage.setItem('wikijs_token', result.jwt);
-        
-        const mockUser: User = {
-          id: '1',
-          email: email,
-          name: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
-          role: 'user',
-        };
+      const result = await apiClient.login(username, password);
 
-        setUser(mockUser);
-        localStorage.setItem('auth_user', JSON.stringify(mockUser));
-        return;
-      }
+      const userData: User = {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.username,
+        role: result.user.role,
+      };
+
+      setUser(userData);
+      localStorage.setItem('auth_user', JSON.stringify(userData));
     } catch (error) {
-      console.log('Wiki.js non disponible, utilisation de l\'authentification locale');
+      console.error('Login failed:', error);
+      // Re-throw the original error instead of creating a generic one
+      throw error;
     }
-
-    // Fallback vers authentification locale
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    if (password.length < 6) {
-      throw new Error('Mot de passe invalide');
-    }
-
-    const mockUser: User = {
-      id: '1',
-      email: email,
-      name: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
-      role: email.includes('admin') ? 'admin' : 'user',
-    };
-
-    setUser(mockUser);
-    localStorage.setItem('auth_user', JSON.stringify(mockUser));
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('auth_user');
-    localStorage.removeItem('wikijs_token');
+    localStorage.removeItem('auth_token');
   };
 
   return (

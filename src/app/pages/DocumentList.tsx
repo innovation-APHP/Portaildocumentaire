@@ -1,37 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Search, Filter, ExternalLink, FileText, ChevronRight } from 'lucide-react';
-import { mockDocuments, getCategoryLabel, getCategoryColor, DocumentCategory } from '../data/mockDocuments';
+import { Search, Filter, FileText, ChevronRight } from 'lucide-react';
+import { useDocuments } from '../hooks/useDocuments';
+import { getCategoryLabel, getCategoryColor, DocumentCategory } from '../data/mockDocuments';
 
 export function DocumentList() {
   const { category } = useParams<{ category: DocumentCategory | 'all' }>();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  // Filtrer les documents par catégorie
-  const filteredByCategory = category && category !== 'all'
-    ? mockDocuments.filter(doc => doc.category === category)
-    : mockDocuments;
+  const params: any = {};
+  if (category && category !== 'all') params.category = category;
+  if (searchQuery) params.search = searchQuery;
+  if (selectedTags.length > 0) params.tags = selectedTags;
 
-  // Récupérer tous les tags uniques
-  const allTags = Array.from(new Set(filteredByCategory.flatMap(doc => doc.tags)));
+  const { documents, loading } = useDocuments(params);
 
-  // Filtrer par recherche et tags
-  const filteredDocs = filteredByCategory.filter(doc => {
-    const matchesSearch = searchQuery === '' ||
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+  const allTags = Array.from(
+    new Set(documents.flatMap((doc: any) => doc.tags?.map((t: any) => t.name) || []))
+  );
 
-    const matchesTags = selectedTags.length === 0 ||
-      selectedTags.some(tag => doc.tags.includes(tag));
-
-    return matchesSearch && matchesTags;
-  });
+  const filteredDocs = documents;
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
@@ -103,7 +96,9 @@ export function DocumentList() {
 
       {/* Documents List */}
       <div className="space-y-4">
-        {filteredDocs.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Chargement...</div>
+        ) : filteredDocs.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
@@ -114,69 +109,53 @@ export function DocumentList() {
             </CardContent>
           </Card>
         ) : (
-          filteredDocs.map(doc => (
+          filteredDocs.map((doc: any) => (
             <Card key={doc.id} className="hover:shadow-md transition-shadow">
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1">
-                    {doc.isExternal ? (
-                      <a
-                        href={doc.externalUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group inline-flex items-center gap-2"
-                      >
-                        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                          {doc.title}
-                        </h3>
-                        <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-blue-600" />
-                      </a>
-                    ) : (
-                      <Link to={`/docs/${doc.category}/${doc.id}`}>
-                        <h3 className="font-semibold text-gray-900 hover:text-blue-600 transition-colors inline-flex items-center gap-2">
-                          {doc.title}
-                          <ChevronRight className="h-4 w-4 text-gray-400" />
-                        </h3>
-                      </Link>
-                    )}
+                    <Link to={`/document/${doc.id}`}>
+                      <h3 className="font-semibold text-gray-900 hover:text-blue-600 transition-colors inline-flex items-center gap-2">
+                        {doc.title}
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      </h3>
+                    </Link>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    {category === 'all' && (
+                    {(category === 'all' || !category) && (
                       <Badge className={getCategoryColor(doc.category)}>
                         {doc.category === 'functional' && 'Fonctionnelle'}
                         {doc.category === 'technical' && 'Technique'}
                         {doc.category === 'user' && 'Utilisateur'}
                       </Badge>
                     )}
-                    {doc.isExternal && (
-                      <Badge variant="outline">Externe</Badge>
-                    )}
                   </div>
                 </div>
 
-                <p className="text-sm text-gray-600 mb-4">{doc.description}</p>
+                <p className="text-sm text-gray-600 mb-4">{doc.description || 'Aucune description'}</p>
 
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
-                    <span className="font-medium">Auteur:</span> {doc.author}
+                    <span className="font-medium">Auteur:</span> {doc.author_name || 'Anonyme'}
                   </span>
                   <span>•</span>
                   <span className="flex items-center gap-1">
-                    <span className="font-medium">Mis à jour:</span>{' '}
-                    {new Date(doc.lastUpdated).toLocaleDateString('fr-FR')}
+                    <span className="font-medium">Créé le:</span>{' '}
+                    {new Date(doc.created_at).toLocaleDateString('fr-FR')}
                   </span>
-                  {doc.tags.length > 0 && (
+                  {doc.tags && doc.tags.length > 0 && (
                     <>
                       <span>•</span>
                       <div className="flex gap-1 flex-wrap">
-                        {doc.tags.map(tag => (
+                        {doc.tags.map((tag: any) => (
                           <Badge
-                            key={tag}
+                            key={tag.id}
                             variant="secondary"
                             className="text-xs cursor-pointer hover:bg-gray-300"
-                            onClick={() => toggleTag(tag)}
+                            onClick={() => toggleTag(tag.name)}
+                            style={{ backgroundColor: tag.color + '20', color: tag.color }}
                           >
-                            {tag}
+                            {tag.name}
                           </Badge>
                         ))}
                       </div>
@@ -184,21 +163,17 @@ export function DocumentList() {
                   )}
                 </div>
 
-                {doc.relatedDocs && doc.relatedDocs.length > 0 && (
+                {doc.related_documents && doc.related_documents.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <p className="text-xs font-medium text-gray-500 mb-2">Documents liés:</p>
                     <div className="flex flex-wrap gap-2">
-                      {doc.relatedDocs.map(relatedId => {
-                        const relatedDoc = mockDocuments.find(d => d.id === relatedId);
-                        if (!relatedDoc) return null;
-                        return (
-                          <Link key={relatedId} to={`/docs/${relatedDoc.category}/${relatedId}`}>
-                            <Badge variant="outline" className="hover:bg-blue-50 cursor-pointer text-xs">
-                              {relatedDoc.title}
-                            </Badge>
-                          </Link>
-                        );
-                      })}
+                      {doc.related_documents.map((relatedDoc: any) => (
+                        <Link key={relatedDoc.id} to={`/document/${relatedDoc.id}`}>
+                          <Badge variant="outline" className="hover:bg-blue-50 cursor-pointer text-xs">
+                            {relatedDoc.title}
+                          </Badge>
+                        </Link>
+                      ))}
                     </div>
                   </div>
                 )}

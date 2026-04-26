@@ -1,13 +1,14 @@
 import { Link } from 'react-router';
-import { BookOpen, FileText, Users, ArrowRight, TrendingUp, Clock, Layers, MessageSquare } from 'lucide-react';
+import { BookOpen, FileText, Users, ArrowRight, Clock, Layers, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { mockDocuments, applications } from '../data/mockDocuments';
 import { useConfig } from '../contexts/ConfigContext';
+import { useStats } from '../hooks/useStats';
 
 export function Home() {
   const { config } = useConfig();
+  const { stats, loading } = useStats();
 
   const categories = [
     {
@@ -16,7 +17,7 @@ export function Home() {
       icon: BookOpen,
       color: 'bg-blue-500',
       href: '/docs/functional',
-      count: mockDocuments.filter(d => d.category === 'functional').length
+      count: stats?.documentsByCategory?.functional || 0
     },
     {
       title: config.categories.technical.label,
@@ -24,7 +25,7 @@ export function Home() {
       icon: FileText,
       color: 'bg-purple-500',
       href: '/docs/technical',
-      count: mockDocuments.filter(d => d.category === 'technical').length
+      count: stats?.documentsByCategory?.technical || 0
     },
     {
       title: config.categories.user.label,
@@ -32,20 +33,17 @@ export function Home() {
       icon: Users,
       color: 'bg-green-500',
       href: '/docs/user',
-      count: mockDocuments.filter(d => d.category === 'user').length
+      count: stats?.documentsByCategory?.user || 0
     }
   ];
 
-  const stats = [
-    { label: 'Documents', value: mockDocuments.length, icon: FileText },
-    { label: 'Applications', value: applications.length, icon: Layers },
+  const statsData = [
+    { label: 'Documents', value: stats?.totalDocuments || 0, icon: FileText },
+    { label: 'Tags', value: stats?.totalTags || 0, icon: Layers },
     { label: 'Catégories', value: 3, icon: BookOpen },
   ];
 
-  // Récupérer les documents récemment mis à jour
-  const recentDocs = [...mockDocuments]
-    .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
-    .slice(0, 5);
+  const recentDocs = stats?.recentDocuments || [];
 
   const getCategoryInfo = (category: string) => {
     return categories.find(c => c.href.includes(category));
@@ -60,7 +58,7 @@ export function Home() {
         </h1>
         <p className="text-lg text-gray-600 max-w-3xl mb-6">
           Accédez à l'ensemble du corpus documentaire de l'organisation : documentation fonctionnelle,
-          technique et utilisateur, le tout centralisé dans Wiki.js.
+          technique et utilisateur, le tout centralisé et accessible.
         </p>
         <Link to="/chat">
           <Button size="lg" className="gap-2">
@@ -73,13 +71,15 @@ export function Home() {
 
       {/* Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
-        {stats.map((stat) => (
+        {statsData.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {loading ? '...' : stat.value}
+                  </p>
                 </div>
                 <stat.icon className="h-10 w-10 text-blue-500 opacity-80" />
               </div>
@@ -133,51 +133,54 @@ export function Home() {
           </Link>
         </div>
         <div className="space-y-4">
-          {recentDocs.map((doc) => {
-            const categoryInfo = getCategoryInfo(doc.category);
-            const Icon = categoryInfo?.icon || BookOpen;
-            return (
-              <Link key={doc.id} to={`/docs/${doc.category}/${doc.id}`}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-4">
-                      <div className={`w-10 h-10 rounded-lg ${categoryInfo?.color} flex items-center justify-center flex-shrink-0`}>
-                        <Icon className="h-5 w-5 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4 mb-2">
-                          <h3 className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
-                            {doc.title}
-                          </h3>
-                          {doc.isExternal && (
-                            <Badge variant="outline" className="flex-shrink-0">Externe</Badge>
-                          )}
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">Chargement...</div>
+          ) : recentDocs.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">Aucun document récent</div>
+          ) : (
+            recentDocs.map((doc: any) => {
+              const categoryInfo = getCategoryInfo(doc.category);
+              const Icon = categoryInfo?.icon || BookOpen;
+              return (
+                <Link key={doc.id} to={`/document/${doc.id}`}>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-4">
+                        <div className={`w-10 h-10 rounded-lg ${categoryInfo?.color} flex items-center justify-center flex-shrink-0`}>
+                          <Icon className="h-5 w-5 text-white" />
                         </div>
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{doc.description}</p>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                          <span>{doc.author}</span>
-                          <span>•</span>
-                          <span>{new Date(doc.lastUpdated).toLocaleDateString('fr-FR')}</span>
-                          {doc.tags.length > 0 && (
-                            <>
-                              <span>•</span>
-                              <div className="flex gap-1">
-                                {doc.tags.slice(0, 3).map(tag => (
-                                  <Badge key={tag} variant="secondary" className="text-xs">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </>
-                          )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4 mb-2">
+                            <h3 className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
+                              {doc.title}
+                            </h3>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{doc.description || 'Aucune description'}</p>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                            <span>{doc.author_name || 'Anonyme'}</span>
+                            <span>•</span>
+                            <span>{new Date(doc.created_at).toLocaleDateString('fr-FR')}</span>
+                            {doc.tags && doc.tags.length > 0 && (
+                              <>
+                                <span>•</span>
+                                <div className="flex gap-1">
+                                  {doc.tags.slice(0, 3).map((tag: any) => (
+                                    <Badge key={tag.id} variant="secondary" className="text-xs">
+                                      {tag.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

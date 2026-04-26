@@ -3,21 +3,27 @@ import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
-import { ArrowLeft, Calendar, User, Tag, FileText, ExternalLink, ChevronRight, Layers } from 'lucide-react';
-import { mockDocuments, getCategoryLabel, getCategoryColor, applications } from '../data/mockDocuments';
-import { MarkdownViewer, useWikiJsLinkTransformer } from '../components/MarkdownViewer';
+import { ArrowLeft, Calendar, User, Tag, FileText, ChevronRight, ExternalLink, Download, File } from 'lucide-react';
+import { getCategoryColor } from '../data/mockDocuments';
+import { MarkdownViewer } from '../components/MarkdownViewer';
+import { FileViewer } from '../components/FileViewer';
+import { useDocument } from '../hooks/useDocuments';
 
 export function DocumentView() {
-  const { category, id } = useParams<{ category: string; id: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { transformContent } = useWikiJsLinkTransformer();
 
-  const document = mockDocuments.find(doc => doc.id === id);
-  
-  // Récupérer l'application associée
-  const app = document ? applications.find(a => a.id === document.application) : null;
+  const { document, loading, error } = useDocument(id!);
 
-  if (!document) {
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center py-12 text-gray-500">Chargement...</div>
+      </div>
+    );
+  }
+
+  if (error || !document) {
     return (
       <div className="max-w-4xl mx-auto">
         <Card>
@@ -25,7 +31,7 @@ export function DocumentView() {
             <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Document non trouvé</h2>
             <p className="text-gray-500 mb-6">
-              Le document que vous recherchez n'existe pas ou a été supprimé.
+              {error || 'Le document que vous recherchez n\'existe pas ou a été supprimé.'}
             </p>
             <Button onClick={() => navigate('/')}>
               Retour à l'accueil
@@ -35,39 +41,6 @@ export function DocumentView() {
       </div>
     );
   }
-
-  // Si c'est un document externe, rediriger
-  if (document.isExternal && document.externalUrl) {
-    window.open(document.externalUrl, '_blank');
-    return (
-      <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <ExternalLink className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Redirection vers un lien externe</h2>
-            <p className="text-gray-500 mb-6">
-              Ce document est hébergé sur une plateforme externe.
-            </p>
-            <div className="flex gap-3 justify-center">
-              <Button onClick={() => navigate(-1)} variant="outline">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour
-              </Button>
-              <a href={document.externalUrl} target="_blank" rel="noopener noreferrer">
-                <Button>
-                  Ouvrir le lien externe
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
-              </a>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Transformer le contenu pour gérer les liens Wiki.js
-  const transformedContent = transformContent(document.content);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -102,26 +75,31 @@ export function DocumentView() {
             <div className="flex items-center gap-2 text-gray-600">
               <User className="h-4 w-4" />
               <span className="font-medium">Auteur:</span>
-              <span>{document.author}</span>
+              <span>{document.author_name || 'Anonyme'}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600">
               <Calendar className="h-4 w-4" />
-              <span className="font-medium">Dernière mise à jour:</span>
-              <span>{new Date(document.lastUpdated).toLocaleDateString('fr-FR')}</span>
+              <span className="font-medium">Créé le:</span>
+              <span>{new Date(document.created_at).toLocaleDateString('fr-FR')}</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-600">
+              <Calendar className="h-4 w-4" />
+              <span className="font-medium">Mis à jour:</span>
+              <span>{new Date(document.updated_at).toLocaleDateString('fr-FR')}</span>
             </div>
           </div>
 
           {/* Tags */}
-          {document.tags.length > 0 && (
+          {document.tags && document.tags.length > 0 && (
             <div className="mt-4">
               <div className="flex items-center gap-2 mb-2">
                 <Tag className="h-4 w-4 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">Tags:</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {document.tags.map(tag => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
+                {document.tags.map((tag: any) => (
+                  <Badge key={tag.id} variant="secondary" style={{ backgroundColor: tag.color + '20', color: tag.color }}>
+                    {tag.name}
                   </Badge>
                 ))}
               </div>
@@ -133,12 +111,70 @@ export function DocumentView() {
       {/* Document Content */}
       <Card className="mb-6">
         <CardContent className="pt-6">
-          <MarkdownViewer content={transformedContent} />
+          {/* Lien externe */}
+          {document.is_external && document.external_url && (
+            <div className="space-y-4">
+              <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <ExternalLink className="h-6 w-6 text-blue-600 flex-shrink-0 mt-1" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-blue-900 mb-2">Document externe</h3>
+                    <p className="text-sm text-blue-700 mb-4">
+                      Ce document est hébergé sur une plateforme externe. Cliquez sur le lien ci-dessous pour y accéder.
+                    </p>
+                    <a
+                      href={document.external_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Ouvrir le document
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+              {document.content && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Description</h3>
+                  <MarkdownViewer content={document.content} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Fichier avec viewer intégré */}
+          {!document.is_external && document.file_path && document.file_type && document.file_type !== 'text/markdown' && document.file_type !== 'text/plain' && (
+            <div className="space-y-6">
+              <FileViewer
+                fileUrl={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001'}/${document.file_path}`}
+                fileType={document.file_type}
+                fileName={document.title}
+                content={document.content}
+              />
+              {document.content && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Notes / Description
+                  </h3>
+                  <div className="prose max-w-none">
+                    <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-4 rounded">{document.content}</pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Contenu texte/markdown normal */}
+          {!document.is_external && (!document.file_type || document.file_type === 'text/markdown' || document.file_type === 'text/plain') && (
+            <MarkdownViewer content={document.content || ''} />
+          )}
         </CardContent>
       </Card>
 
       {/* Related Documents */}
-      {document.relatedDocs && document.relatedDocs.length > 0 && (
+      {document.related_documents && document.related_documents.length > 0 && (
         <Card>
           <CardContent className="pt-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -146,36 +182,24 @@ export function DocumentView() {
               Documents liés
             </h2>
             <div className="space-y-2">
-              {document.relatedDocs.map(relatedId => {
-                const relatedDoc = mockDocuments.find(d => d.id === relatedId);
-                if (!relatedDoc) return null;
-                return (
-                  <Link
-                    key={relatedId}
-                    to={`/docs/${relatedDoc.category}/${relatedId}`}
-                    className="block"
-                  >
-                    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
-                          {relatedDoc.title}
-                        </h3>
-                        <p className="text-sm text-gray-500 line-clamp-1">
-                          {relatedDoc.description}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge className={getCategoryColor(relatedDoc.category)} variant="outline">
-                          {relatedDoc.category === 'functional' && 'Fonctionnelle'}
-                          {relatedDoc.category === 'technical' && 'Technique'}
-                          {relatedDoc.category === 'user' && 'Utilisateur'}
-                        </Badge>
-                        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
-                      </div>
+              {document.related_documents.map((relatedDoc: any) => (
+                <Link
+                  key={relatedDoc.id}
+                  to={`/document/${relatedDoc.id}`}
+                  className="block"
+                >
+                  <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                        {relatedDoc.title}
+                      </h3>
                     </div>
-                  </Link>
-                );
-              })}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
             </div>
           </CardContent>
         </Card>

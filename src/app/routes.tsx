@@ -8,6 +8,7 @@ import { ApplicationTree } from './pages/ApplicationTree';
 import { ChatPage } from './pages/ChatPage';
 import { Login } from './pages/Login';
 import { Settings } from './pages/Settings';
+import { Admin } from './pages/Admin';
 
 export const router = createBrowserRouter([
   {
@@ -37,6 +38,10 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         Component: Settings,
+      },
+      {
+        path: 'admin',
+        Component: Admin,
       },
       {
         path: 'docs/:category',
