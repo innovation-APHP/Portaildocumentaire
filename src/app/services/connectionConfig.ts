@@ -5,6 +5,12 @@ interface ConnectionConfig {
   apiUrl?: string;          // URL de l'API PostgreSQL Backend
   ragApiUrl?: string;        // URL de l'API RAG
   ragApiToken?: string;      // Token d'authentification RAG
+  // Connexion PostgreSQL directe
+  dbHost?: string;          // Hôte PostgreSQL
+  dbPort?: string;          // Port PostgreSQL
+  dbName?: string;          // Nom de la base de données
+  dbUser?: string;          // Utilisateur PostgreSQL
+  dbPassword?: string;      // Mot de passe PostgreSQL
 }
 
 const CONFIG_KEY = 'connection_config';
@@ -89,6 +95,38 @@ class ConnectionConfigService {
     return this.get('ragApiToken', import.meta.env.VITE_RAG_API_TOKEN) || '';
   }
 
+  // Obtenir les paramètres de connexion PostgreSQL
+  getDbHost(): string {
+    return this.get('dbHost', import.meta.env.VITE_DB_HOST) || 'localhost';
+  }
+
+  getDbPort(): string {
+    return this.get('dbPort', import.meta.env.VITE_DB_PORT) || '5432';
+  }
+
+  getDbName(): string {
+    return this.get('dbName', import.meta.env.VITE_DB_NAME) || 'portail_doc';
+  }
+
+  getDbUser(): string {
+    return this.get('dbUser', import.meta.env.VITE_DB_USER) || 'postgres';
+  }
+
+  getDbPassword(): string {
+    return this.get('dbPassword', import.meta.env.VITE_DB_PASSWORD) || '';
+  }
+
+  // Obtenir la configuration PostgreSQL complète
+  getDbConfig(): { host: string; port: string; database: string; user: string; password: string } {
+    return {
+      host: this.getDbHost(),
+      port: this.getDbPort(),
+      database: this.getDbName(),
+      user: this.getDbUser(),
+      password: this.getDbPassword(),
+    };
+  }
+
   // Tester la connexion à l'API Backend
   async testBackendConnection(url: string): Promise<{ success: boolean; message: string }> {
     try {
@@ -151,6 +189,7 @@ if (connectionConfig.hasCustomConfig()) {
   console.log('  📡 API Backend:', config.apiUrl || '(env)');
   console.log('  🤖 API RAG:', config.ragApiUrl || '(env)');
   console.log('  🔑 Token RAG:', config.ragApiToken ? '✓ configuré' : '(env)');
+  console.log('  🗄️ PostgreSQL:', config.dbHost ? `${config.dbHost}:${config.dbPort || '5432'}` : '(env)');
 } else {
   console.log('⚙️ Utilisation des variables d\'environnement (.env)');
 }

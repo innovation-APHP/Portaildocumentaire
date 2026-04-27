@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Database, User, Palette, Info, Shield, Server, CheckCircle, XCircle, Save, RotateCcw, Loader2, Zap } from 'lucide-react';
+import { Settings as SettingsIcon, Database, User, Palette, Info, Shield, Server, CheckCircle, XCircle, Save, RotateCcw, Loader2, Zap, Eye, EyeOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -19,21 +19,33 @@ export function Settings() {
   const [configApiUrl, setConfigApiUrl] = useState('');
   const [configRagUrl, setConfigRagUrl] = useState('');
   const [configRagToken, setConfigRagToken] = useState('');
+  const [configDbHost, setConfigDbHost] = useState('');
+  const [configDbPort, setConfigDbPort] = useState('');
+  const [configDbName, setConfigDbName] = useState('');
+  const [configDbUser, setConfigDbUser] = useState('');
+  const [configDbPassword, setConfigDbPassword] = useState('');
   const [hasCustomConfig, setHasCustomConfig] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTestingBackend, setIsTestingBackend] = useState(false);
   const [isTestingRag, setIsTestingRag] = useState(false);
+  const [showDbPassword, setShowDbPassword] = useState(false);
 
   useEffect(() => {
     // Charger la configuration actuelle
     const currentApiUrl = connectionConfig.getApiUrl();
     const currentRagUrl = connectionConfig.getRagApiUrl();
     const currentRagToken = connectionConfig.getRagApiToken();
+    const dbConfig = connectionConfig.getDbConfig();
 
     setApiUrl(currentApiUrl);
     setConfigApiUrl(currentApiUrl);
     setConfigRagUrl(currentRagUrl);
     setConfigRagToken(currentRagToken);
+    setConfigDbHost(dbConfig.host);
+    setConfigDbPort(dbConfig.port);
+    setConfigDbName(dbConfig.database);
+    setConfigDbUser(dbConfig.user);
+    setConfigDbPassword(dbConfig.password);
     setIsMockMode(!currentApiUrl || currentApiUrl === '');
     setHasCustomConfig(connectionConfig.hasCustomConfig());
   }, []);
@@ -51,6 +63,23 @@ export function Settings() {
       }
       if (configRagToken.trim()) {
         config.ragApiToken = configRagToken.trim();
+      }
+
+      // Configuration PostgreSQL
+      if (configDbHost.trim()) {
+        config.dbHost = configDbHost.trim();
+      }
+      if (configDbPort.trim()) {
+        config.dbPort = configDbPort.trim();
+      }
+      if (configDbName.trim()) {
+        config.dbName = configDbName.trim();
+      }
+      if (configDbUser.trim()) {
+        config.dbUser = configDbUser.trim();
+      }
+      if (configDbPassword.trim()) {
+        config.dbPassword = configDbPassword.trim();
       }
 
       connectionConfig.saveConfig(config);
@@ -318,6 +347,147 @@ export function Settings() {
               <p className="text-xs text-gray-500">
                 Token Bearer pour l'authentification à l'API RAG (si requise).
               </p>
+            </div>
+
+            <Separator />
+
+            {/* Configuration PostgreSQL Directe */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-purple-600" />
+                <h3 className="font-semibold text-gray-900">Connexion PostgreSQL</h3>
+              </div>
+              <p className="text-xs text-gray-600">
+                Configuration de la connexion directe à la base de données PostgreSQL.
+                <strong className="text-amber-700"> ⚠️ Le backend doit être redémarré après modification.</strong>
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Host */}
+                <div className="space-y-2">
+                  <Label htmlFor="dbHost">Hôte PostgreSQL</Label>
+                  <Input
+                    id="dbHost"
+                    type="text"
+                    placeholder="localhost"
+                    value={configDbHost}
+                    onChange={(e) => setConfigDbHost(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-500">
+                    {!hasCustomConfig && import.meta.env.VITE_DB_HOST && (
+                      <span className="text-blue-600">
+                        Valeur .env: {import.meta.env.VITE_DB_HOST}
+                      </span>
+                    )}
+                    {!import.meta.env.VITE_DB_HOST && 'Défaut: localhost'}
+                  </p>
+                </div>
+
+                {/* Port */}
+                <div className="space-y-2">
+                  <Label htmlFor="dbPort">Port</Label>
+                  <Input
+                    id="dbPort"
+                    type="text"
+                    placeholder="5432"
+                    value={configDbPort}
+                    onChange={(e) => setConfigDbPort(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-500">
+                    {!hasCustomConfig && import.meta.env.VITE_DB_PORT && (
+                      <span className="text-blue-600">
+                        Valeur .env: {import.meta.env.VITE_DB_PORT}
+                      </span>
+                    )}
+                    {!import.meta.env.VITE_DB_PORT && 'Défaut: 5432'}
+                  </p>
+                </div>
+
+                {/* Database Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="dbName">Nom de la base de données</Label>
+                  <Input
+                    id="dbName"
+                    type="text"
+                    placeholder="portail_doc"
+                    value={configDbName}
+                    onChange={(e) => setConfigDbName(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-500">
+                    {!hasCustomConfig && import.meta.env.VITE_DB_NAME && (
+                      <span className="text-blue-600">
+                        Valeur .env: {import.meta.env.VITE_DB_NAME}
+                      </span>
+                    )}
+                    {!import.meta.env.VITE_DB_NAME && 'Défaut: portail_doc'}
+                  </p>
+                </div>
+
+                {/* User */}
+                <div className="space-y-2">
+                  <Label htmlFor="dbUser">Utilisateur PostgreSQL</Label>
+                  <Input
+                    id="dbUser"
+                    type="text"
+                    placeholder="postgres"
+                    value={configDbUser}
+                    onChange={(e) => setConfigDbUser(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-500">
+                    {!hasCustomConfig && import.meta.env.VITE_DB_USER && (
+                      <span className="text-blue-600">
+                        Valeur .env: {import.meta.env.VITE_DB_USER}
+                      </span>
+                    )}
+                    {!import.meta.env.VITE_DB_USER && 'Défaut: postgres'}
+                  </p>
+                </div>
+
+                {/* Password */}
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="dbPassword">Mot de passe PostgreSQL</Label>
+                  <div className="relative">
+                    <Input
+                      id="dbPassword"
+                      type={showDbPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={configDbPassword}
+                      onChange={(e) => setConfigDbPassword(e.target.value)}
+                      className="font-mono text-sm pr-20"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 text-xs"
+                      onClick={() => setShowDbPassword(!showDbPassword)}
+                    >
+                      {showDbPassword ? 'Masquer' : 'Afficher'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Mot de passe pour se connecter à PostgreSQL
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-xs text-amber-800 flex items-start gap-2">
+                  <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Important :</strong> Ces paramètres sont sauvegardés localement dans le navigateur.
+                    Pour que le backend les utilise, vous devez soit :
+                    <br />
+                    1. Exporter ces paramètres dans <code className="bg-amber-100 px-1 rounded">server/.env</code>
+                    <br />
+                    2. Redémarrer le serveur backend après modification
+                  </span>
+                </p>
+              </div>
             </div>
 
             <Separator />
