@@ -1,0 +1,11 @@
+# Dépendances pour le serveur RAG de démonstration
+
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+
+# Optionnel: pour intégration avec des LLMs réels
+# openai==1.3.0
+# anthropic==0.7.0
+# langchain==0.0.340
