@@ -57,14 +57,7 @@ export function Login() {
           <CardHeader>
             <CardTitle>Connexion</CardTitle>
             <CardDescription>
-              {IS_MOCK_MODE ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                  Mode démonstration - Utilisez les identifiants ci-dessous
-                </span>
-              ) : (
-                'Entrez vos identifiants pour accéder au portail'
-              )}
+              Entrez vos identifiants pour accéder au portail
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -134,52 +127,9 @@ export function Login() {
                   'Se connecter'
                 )}
               </Button>
-
-              {IS_MOCK_MODE && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setUsername('admin');
-                    setPassword('password123');
-                  }}
-                  disabled={isLoading}
-                >
-                  Remplir avec admin
-                </Button>
-              )}
             </form>
           </CardContent>
         </Card>
-
-        {/* Demo Info */}
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-900 font-medium mb-2">
-            💡 Comptes de démonstration (Mode Mock)
-          </p>
-          <p className="text-xs text-blue-700 mb-3">
-            Utilisez exactement ces identifiants :
-          </p>
-          <ul className="text-xs text-blue-800 space-y-1">
-            <li>• <strong>Nom d'utilisateur:</strong> admin <strong>|</strong> <strong>Mot de passe:</strong> password123</li>
-            <li>• <strong>Nom d'utilisateur:</strong> editor <strong>|</strong> <strong>Mot de passe:</strong> password123</li>
-            <li>• <strong>Nom d'utilisateur:</strong> user <strong>|</strong> <strong>Mot de passe:</strong> password123</li>
-          </ul>
-        </div>
-
-        {/* Debug Info */}
-        <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-          <p className="text-xs text-gray-600 font-mono">
-            🔍 Mode détecté: <strong>{IS_MOCK_MODE ? 'MOCK' : 'API'}</strong>
-          </p>
-          <p className="text-xs text-gray-500 font-mono mt-1">
-            VITE_API_URL: "{import.meta.env.VITE_API_URL || '(vide)'}"
-          </p>
-          <p className="text-xs text-gray-400 mt-2">
-            Ouvrez la console (F12) pour voir les logs de connexion détaillés
-          </p>
-        </div>
       </div>
     </div>
   );
